@@ -12,7 +12,7 @@ This can currently be understood as a proof of concept. It certainly cannot do e
 
 ## Requirements
 
-- TidalCycles v1.7.1+
+- [TidalCycles](https://github.com/tidalcycles/Tidal) v1.7.1+
 - [SuperDirt](https://github.com/musikinformatik/SuperDirt) v1.7.1+
 - [VSTPlugin](https://github.com/Spacechild1/vstplugin) 0.4.0+
 
