@@ -1,13 +1,10 @@
-
 (
-SynthDef("VST", { |pan = 0, n = 0, id = \vk1, dryBus = 78|
+SynthDef("VST", { |pan = 0, n = 0, id = \zebralette1, dryBus = 78|
 	var sound;
 
 	sound = In.ar(dryBus, ~dirt.numChannels);
 
 	// These are vst instruments
-	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \vk1);
-	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \vk2);
 	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette1);
 	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette2);
 	// Here you could define more instruments
@@ -23,51 +20,31 @@ var diversions = ();
 var vstControlBus = ();
 var vstControlBusses = ();
 var synths = Dictionary [
-	\vk1 -> Synth("VST", [id: \vk1, outBus: 76, dryBus: 78]),
-	\vk2 -> Synth("VST", [id: \vk2, outBus: 76, dryBus: 78]),
 	\zebralette1 -> Synth("VST", [id: \zebralette1, outBus: 76, dryBus: 78]),
-	\zebralette2 -> Synth("VST", [id: \zebralette2, outBus: 76, dryBus: 78]),
+	\zebralette2 -> Synth("VST", [id: \zebralette2, outBus: 76, dryBus: 78])
 ];
 var instrument;
 var instrumentSynths= ();
 var instruments = Dictionary[
-	\vk1 -> VSTPluginController(synths.at(\vk1), id: \vk1).open("VK-1", editor: true, verbose: true),
-	\vk2 -> VSTPluginController(synths.at(\vk2), id: \vk2).open("VK-1", editor: true, verbose: true),
 	\zebralette1 -> VSTPluginController(synths.at(\zebralette1), id: \zebralette1).open("Zebralette", editor: true, verbose: false),
-	\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false),
-	//... Define your vst instruments here
+	\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false)
 ];
 
-// Just to make instrument accessible from outside
-// to use ~instrument.editor
-~instruments = instruments;
 
-~vstControlBus = vstControlBus;
-~vstControlBusses = vstControlBusses;
-
-~diversions = diversions;
-~d1.defaultParentEvent[\diversion] = { |dirtEvent|
-	diversions[~s].value;
-	diversions[~vstName].value;
-};
-~d2.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value; diversions[~vstName].value;
-};
-~d3.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
-};
-~d4.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
-};
-~d5.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
-};
-
-~diversions[\vst]  = {
+var triggerFunc = {
 	var oldBusses = Set[];
 	var newBusses = Set[];
 	var busId;
 
 	if (~legato.value.isNil, {~legato = 1.0});
-	if (~vstName.value.isNil, {~vstName = "vk1".asSymbol});
+	if (~vstName.value.isNil, {~vstName = "zebralette1".asSymbol});
 	if (~n.isNil, {~n = 0});
 	if (~pan.isNil, {~pan = 0});
+	if (~gain.isNil, {~gain = 1});
+	if (~orbit.isNil, {~orbit = 0});
+
+	//["cycles", ~cycle, "gain", ~gain, "n", ~n, "vst", ~vstName].postln;
+
 
 		~dirt.server.makeBundle(~latency, {
 
@@ -107,20 +84,54 @@ var instruments = Dictionary[
 			};
 		};
 
-		(newBusses -- oldBusses).do{ |deleteBus|
-			vstControlBusses.at(deleteBus).remove(~vstName);
-		};
+			(newBusses -- oldBusses).do{ |deleteBus|
+				vstControlBusses.at(deleteBus).remove(~vstName);
+			};
 
-		(\type: \vst_midi,
-			\vst: instruments[~vstName],
-			\midicmd: \noteOn,
-			\chan: 0,
-			\amp: 0.5,
-			\midinote: ~n + 60,
-			\dur: ~delta.value * ~legato,
-			\progNum: ~progNum,
-		).play;
-	})
+			(\type: \vst_midi,
+				\vst: instruments[~vstName],
+				\midicmd: \noteOn,
+				\chan: 0,
+				\dur: ~delta.value,
+				\legato: ~legato,
+				\hasGate: true,
+				\amp: ~gain,
+				\midinote: ~n + 60,
+				\progNum: ~progNum,
+			).play;
+		});
+};
+
+
+// Just to make instrument accessible from outside
+// to use ~instrument.editor
+~instruments = instruments;
+
+~vstControlBus = vstControlBus;
+~vstControlBusses = vstControlBusses;
+
+~diversions = diversions;
+~d1.defaultParentEvent[\diversion] = { |dirtEvent|
+	diversions[~s].value;
+	diversions[~vstName].value;
+};
+~d2.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value; diversions[~vstName].value;
+};
+~d3.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
+};
+~d4.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
+};
+~d5.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value; diversions[~vstName].value;
+};
+
+
+
+~diversions[\vst]  = {
+	if (~vstName.value.isNil, {~vstName = "zebralette1".asSymbol});
+	if (~n.isNil, {~n = 0});
+
+	triggerFunc.value;
+
 };
 
 // This is a custom control bus listener
@@ -133,7 +144,9 @@ a = OSCFunc({ |msg, time, tidalAddr|
 	instruments.do {|instrument|
 		~instruments.at(instrument).set(~vstControlBus.at(busid).asInteger , msg[2]);
 	};
-}, '/c_set', NetAddr("127.0.0.1"), recvPort: 3338)
+}, '/c_set', NetAddr("127.0.0.1"), recvPort: 3338);
+
 )
 
-~instruments.at(\vk1).editor
+~instruments.at(\zebralette2).editor
+
