@@ -1,15 +1,14 @@
 (
-SynthDef("VST", { |pan = 0, n = 0, id = \zebralette1, dryBus = 78|
+SynthDef("VST", { |out, pan = 0, n = 0, id = \zebralette1|
 	var sound;
 
-	sound = In.ar(dryBus, ~dirt.numChannels);
+	sound = In.ar(out, ~dirt.numChannels);
 
 	// These are vst instruments
 	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette1);
-	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette2);
+	//sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette2);
 	// Here you could define more instruments
-
-	Out.ar(dryBus,
+	Out.ar(out,
 		DirtPan.ar(sound, ~dirt.numChannels, pan)
 	)
 }).add;
@@ -20,14 +19,14 @@ var diversions = ();
 var vstControlBus = ();
 var vstControlBusses = ();
 var synths = Dictionary [
-	\zebralette1 -> Synth("VST", [id: \zebralette1, outBus: 76, dryBus: 78]),
-	\zebralette2 -> Synth("VST", [id: \zebralette2, outBus: 76, dryBus: 78])
+	\zebralette1 -> Synth("VST", [id: \zebralette1]),
+	//\zebralette2 -> Synth("VST", [id: \zebralette2])
 ];
 var instrument;
 var instrumentSynths= ();
 var instruments = Dictionary[
 	\zebralette1 -> VSTPluginController(synths.at(\zebralette1), id: \zebralette1).open("Zebralette", editor: true, verbose: false),
-	\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false)
+	//\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false)
 ];
 
 
@@ -43,9 +42,6 @@ var triggerFunc = {
 	if (~gain.isNil, {~gain = 1});
 	if (~orbit.isNil, {~orbit = 0});
 
-	//["cycles", ~cycle, "gain", ~gain, "n", ~n, "vst", ~vstName].postln;
-
-
 		~dirt.server.makeBundle(~latency, {
 
 		instrument = instruments[~vstName];
@@ -54,8 +50,7 @@ var triggerFunc = {
 
 			// Switch to the current orbit
 			synths.at(~vstName).set(
-				\dryBus, ~dirt.orbits[currentEnvironment.at(\orbit).asInteger].dryBus,
-				\outBus, ~dirt.orbits[currentEnvironment.at(\orbit).asInteger].outBus,
+				\out, ~out,
 				\pan, ~pan,
 			);
 
@@ -98,55 +93,45 @@ var triggerFunc = {
 				\amp: ~gain,
 				\midinote: ~n + 60,
 				\progNum: ~progNum,
-			).play;
+		    ).play(~synthGroup);
 		});
+
+		/* This is plugin specific to switch the presets
+	      if (~preset.notNil, {
+		  (\type: \vst_midi,
+			\vst: instruments[~vstName],
+			\midicmd: \control,
+			\chan: 0,\ctlNum: 0,\control: 1
+		  ).play;
+
+		  (\type: \vst_midi,
+			\vst: instruments[~vstName],
+			\midicmd: \program,
+			\chan: 0,\progNum: ~preset
+		  ).play;
+		});*/
 };
 
 
-// Just to make instrument accessible from outside
-// to use ~instrument.editor
+~dirt.soundLibrary.addSynth(\vst,
+	(playInside: { |e|
+		triggerFunc.value;
+
+		[\out, ~out, \sustain, ~sustain].asControlInput.flop.do { |each|
+			~dirt.server.sendMsg(\s_new,
+				"VST",
+				-1, // no id
+				1, // add action: addToTail
+				~synthGroup, // send to group
+				*each.asOSCArgArray // append all other args
+			)
+		}
+
+	})
+);
+
 ~instruments = instruments;
-
-~vstControlBus = vstControlBus;
-~vstControlBusses = vstControlBusses;
-
-~diversions = diversions;
-~d1.defaultParentEvent[\diversion] = { |dirtEvent|
-	diversions[~s].value;
-	diversions[~vstName].value;
-};
-~d2.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value; diversions[~vstName].value;
-};
-~d3.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
-};
-~d4.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value;	diversions[~vstName].value;
-};
-~d5.defaultParentEvent[\diversion] = { |dirtEvent|diversions[~s].value; diversions[~vstName].value;
-};
-
-
-
-~diversions[\vst]  = {
-	if (~vstName.value.isNil, {~vstName = "zebralette1".asSymbol});
-	if (~n.isNil, {~n = 0});
-
-	triggerFunc.value;
-
-};
-
-// This is a custom control bus listener
-// To use it you need to add a new target with a control bus listening on 3338
-a = OSCFunc({ |msg, time, tidalAddr|
-	var busid = ("c" ++ msg[1]).asSymbol;
-	var busnr = msg[1];
-	var instruments = ~vstControlBusses.at(busid);
-
-	instruments.do {|instrument|
-		~instruments.at(instrument).set(~vstControlBus.at(busid).asInteger , msg[2]);
-	};
-}, '/c_set', NetAddr("127.0.0.1"), recvPort: 3338);
 
 )
 
-~instruments.at(\zebralette2).editor
-
+~instruments.at(\zebralette1).editor
