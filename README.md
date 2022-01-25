@@ -85,7 +85,7 @@ d1 $ n (scale "major" "0 5 ~7")
 For adding or removing a VST plugins you need to do the following changes in `TidalVST.scd`:
 
 1. Add something like `VSTPlugin.ar(sound, ~dirt.numChannels, id: \myVstId);` to the "VST" SynthDef
-2. Add `\myVstId -> Synth("VST", [id: \myVstId, outBus: 76, dryBus: 78]),`to the synths Dictionary
+2. Add `\myVstId -> Synth("VST", [id: \myVstId]),`to the synths Dictionary
 3. Add `\myVstId -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false),`to the instruments Dictionary.
 
 I think not every parameter should be necessary and it should be clean up soon. But to be unsure everything is working you should do it this way.
