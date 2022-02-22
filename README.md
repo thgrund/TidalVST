@@ -4,11 +4,11 @@
 
 Using Supercolliders VSTPluginController to control VST plugins with TidalCycles.
 
-This can currently be understood as a proof of concept. It certainly cannot do everything that one would like to have in terms of features. What you can do, however, is to: 
+This can currently be understood as a proof of concept. What you can do is to: 
 
 - Use the VSTPluginController to make a VST plugin accesible for TidalCycles
 - Control VST parameters with TidalCycles pattern. You can use simple functions or even control busses!
--  Apply global effects from SuperDirt 
+-  Apply all kind of effects from SuperDirt 
 
 ## Requirements
 
@@ -35,14 +35,14 @@ And you need to add the content from  `newFunction.hs` in this repo to your `Boo
 One simple approach is to play notes withouth controlling any other parameter:
 
 ```haskell
-d1 $ n (scale "major" "0 5 ~7") # vst "zebralette" -- this is the name of your vst plugin
+d1 $ n (scale "major" "0 5 ~7") # s "vst" -- this name can be changed in the addSynth function  
 ```
 
  But you can use the functions `varg1` .. `varg100` from `newFunction.hs`. The parameter mapping depends on the plugin. I prefer to create a more semantically meaning for a specific vst plugin parameter like `oscrate = varg23`. 
 
 ```haskell
 d1 $ n (scale "major" "0 5 ~7")
-   # vst "zebralette"
+   # s "vst"
    # varg34 (
       "[0.25 <0.5 0.75> <0.75 0>]"
    )
@@ -52,7 +52,7 @@ You can control  the vst parameter with control busses too! Like the functions y
 
 ```haskell
 d1 $ n "0/2"
-   # vst "zebralette"
+   # s "vst"
    # varg34bus 1 (
       segment "<4 256>"
       $ ( isaw * "<0.25 0.25 0.5>") + 0.25
@@ -63,7 +63,7 @@ And you can add global effects from SuperDirt
 
 ```haskell
 d1 $ n (scale "major" "0 5 ~7")
-   # vst "zebralette"
+   # s "vst"
    # room 0.2 # sz 0.4
    # delay 1
    # delaytime 0.2 # delayfeedback 0.2
@@ -72,19 +72,22 @@ d1 $ n (scale "major" "0 5 ~7")
    # legato 0.1
 ```
 
+Andlocal effects from SuperDirt
+
+```haskell
+d1 $ n (scale "major" "0 5 ~7")
+   # s "vst"
+   # lpf (slow 4 $ sine * 4000)
+```
+
 ## SuperCollider
 
 For adding or removing a VST plugins you need to do the following changes in `TidalVST.scd`:
 
 1. Add something like `VSTPlugin.ar(sound, ~dirt.numChannels, id: \myVstId);` to the "VST" SynthDef
-2. Add `\myVstId -> Synth("VST", [id: \myVstId, outBus: 76, dryBus: 78]),`to the synths Dictionary
+2. Add `\myVstId -> Synth("VST", [id: \myVstId]),`to the synths Dictionary
 3. Add `\myVstId -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false),`to the instruments Dictionary.
 
 I think not every parameter should be necessary and it should be clean up soon. But to be unsure everything is working you should do it this way.
 
 The `VSTPluginController` should looks into your VST and VST3 folder for the file names. These names should be the same for the `open` method. 
-
-## Known issues
-
-- You will receive an error message that the vst instrument is unknown. In fact I do not fully understand how the effect busses and diversion in SuperDirt are working. You can delete the every occurence of `diversions[~vstName].value;`. Then you will no longer have the error message but the downside of it is that you can not use the global effects anymore.
-- You can not use local effects from SuperDirt yet.
