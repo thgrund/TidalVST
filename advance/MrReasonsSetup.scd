@@ -1,6 +1,7 @@
 (
-SynthDef("Zebralette", { |out, pan = 0, n = 0, id = \zebralette, dryBus = 78|
+SynthDef("Zebralette", { |out, pan = 0, n = 0|
 	var sound;
+	//var env = EnvGen.ar(Env.linen(0.002, 0.996, 0.002, 1,-3), timeScale:1, doneAction:0);
 
 	sound = In.ar(out, ~dirt.numChannels);
 
@@ -16,10 +17,9 @@ SynthDef("Zebralette", { |out, pan = 0, n = 0, id = \zebralette, dryBus = 78|
 )
 
 (
-SynthDef("Zebralette2", { |out, pan = 0, n = 0, id = \zebralette2, dryBus = 78|
-	var sound;
+SynthDef("Zebralette2", { |out, pan = 0, n = 0|
+	var sound = In.ar(out, ~dirt.numChannels);
 
-	sound = In.ar(out, ~dirt.numChannels);
 	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette2);
 
 	Out.ar(out,
@@ -28,10 +28,21 @@ SynthDef("Zebralette2", { |out, pan = 0, n = 0, id = \zebralette2, dryBus = 78|
 }).add;
 )
 
-
 (
+SynthDef("Zebralette3", { |out, pan = 0, n = 0|
+	var sound = In.ar(out, ~dirt.numChannels);
 
-SynthDef("Labs", { |out, pan = 0, n = 0, id = \labs, dryBus = 78|
+	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette3);
+
+	Out.ar(out,
+		DirtPan.ar(sound, ~dirt.numChannels, pan)
+	)
+}).add;
+)
+
+/*(
+
+SynthDef("Labs", { |out, pan = 0, n = 0, id = \labs|
 	var sound;
 
 	sound = In.ar(out, ~dirt.numChannels);
@@ -40,7 +51,7 @@ SynthDef("Labs", { |out, pan = 0, n = 0, id = \labs, dryBus = 78|
 		DirtPan.ar(sound, ~dirt.numChannels, pan)
 	)
 }).add;
-)
+)*/
 
 
 (
@@ -50,14 +61,16 @@ var vstControlBusses = ();
 var synths = Dictionary [
 	\zebralette -> Synth("Zebralette", []),
 	\zebralette2 -> Synth("Zebralette2", []),
-	\labs -> Synth("Labs", [])
+	\zebralette3 -> Synth("Zebralette3", []),
+	//\labs -> Synth("Labs", [])
 ];
 var instrument;
 var instrumentSynths= ();
 var instruments = Dictionary[
 	\zebralette -> VSTPluginController(synths.at(\zebralette), id: \zebralette).open("Zebralette", editor: true, verbose: false),
 	\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false),
-	\labs -> VSTPluginController(synths.at(\labs), id: \labs).open("LABS", editor: true, verbose: false)
+	\zebralette3 -> VSTPluginController(synths.at(\zebralette3), id: \zebralette3).open("Zebralette", editor: true, verbose: false),
+	//\labs -> VSTPluginController(synths.at(\labs), id: \labs).open("LABS", editor: true, verbose: false)
 ];
 
 
@@ -83,7 +96,6 @@ var triggerFunc = { |vstName, pan|
 			// Switch to the current orbit
 			synths.at(~vstName).set(
 				\out, ~out,
-				\dryBus, ~dirt.orbits[currentEnvironment.at(\orbit).asInteger].dryBus,
 				\pan, ~pan,
 			);
 
@@ -129,19 +141,27 @@ var triggerFunc = { |vstName, pan|
 		    ).play(~synthGroup);
 		});
 
-			if (~preset.notNil, {
-		  (\type: \vst_midi,
-			\vst: instruments[~vstName],
-			\midicmd: \control,
-			\chan: 0,\ctlNum: 0,\control: 1
-		  ).play;
 
-		  (\type: \vst_midi,
-			\vst: instruments[~vstName],
-			\midicmd: \program,
-			\chan: 0,\progNum: ~preset
-		  ).play;
-		});
+};
+
+var changeZebraPreset = { |control, vstName|
+	var controlNr;
+
+	if (~control.notNil, {controlNr = ~control}, {controlNr = control});
+
+	if (~preset.notNil, {
+	  (\type: \vst_midi,
+		\vst: instruments[vstName],
+		\midicmd: \control,
+		\chan: 0,\ctlNum: 0,\control: controlNr
+	  ).play;
+
+		(\type: \vst_midi,
+		 \vst: instruments[vstName],
+		 \midicmd: \program,
+		 \chan: 0,\progNum: ~preset
+	  ).play;
+	});
 };
 
 var serverMessage = { |synth|
@@ -156,22 +176,56 @@ var serverMessage = { |synth|
 	}
 };
 
-~dirt.soundLibrary.addSynth(\zebralette,
+~dirt.soundLibrary.addSynth(\zpad,
 	(playInside: { |e|
+	   var zebralette = ();
+	   var pan = currentEnvironment.at(\pan);
 
-		triggerFunc.value(\zebralette);
-		serverMessage.value(\Zebralette);
+	   currentEnvironment.add(\pan -> ((pan * 0.5) + 0.5));
+
+	   zebralette.putAll((\type: \dirt, \dirt: ~dirt), currentEnvironment);
+	   zebralette.add(\s -> \pad);
+	   zebralette.add(\resonance -> 0.1);
+	   zebralette.add(\midfreq -> 264);
+	   zebralette.add(\middb -> 10.5);
+	   zebralette.add(\midrq -> 0.1);
+	   zebralette.play;
 	})
 );
 
-~dirt.soundLibrary.addSynth(\zebralette2,
+~dirt.soundLibrary.addSynth(\pad,
+	(playInside: { |e|
+		triggerFunc.value(\zebralette);
+		serverMessage.value(\Zebralette);
+		changeZebraPreset.value(1, \zebralette);
+	})
+);
+
+~dirt.soundLibrary.addSynth(\zlead,
 	(playInside: { |e|
 		triggerFunc.value(\zebralette2);
 		serverMessage.value(\Zebralette2);
+		changeZebraPreset.value(2, \zebralette2);
 	})
 );
 
-~dirt.soundLibrary.addSynth(\labs,
+~dirt.soundLibrary.addSynth(\zkey,
+	(playInside: { |e|
+		triggerFunc.value(\zebralette3);
+		serverMessage.value(\Zebralette3);
+		changeZebraPreset.value(3, \zebralette3);
+	})
+);
+
+~dirt.soundLibrary.addSynth(\prep,
+	(playInside: { |e|
+		["Empty preparation event", e].postln;
+	})
+);
+
+
+
+/*~dirt.soundLibrary.addSynth(\labs,
 	(playInside: { |e|
 		triggerFunc.value(\labs);
 		serverMessage.value(\Labs);
@@ -187,7 +241,7 @@ var serverMessage = { |synth|
 		currentEnvironment.add(\pan -> ((pan * 0.5) + 0.5));
 
 	   zebralette.putAll((\type: \dirt, \dirt: ~dirt), currentEnvironment);
-	   zebralette.add(\s -> \zebralette);
+	   zebralette.add(\s -> \zpad);
 	   zebralette.add(\hcutoff -> 220);
 	   zebralette.add(\midfreq -> 245);
 	   zebralette.add(\middb -> 15);
@@ -201,7 +255,7 @@ var serverMessage = { |synth|
 	   labs.add(\midrq -> 0.4);
 	   labs.play;
 	})
-);
+);*/
 
 
 ~instruments = instruments;
@@ -209,13 +263,6 @@ var serverMessage = { |synth|
 )
 
 VSTPluginController.browse
-
-
-~instruments.at(\zebralette).editor
-
-~instruments.at(\zebralette2).editor
-
-~instruments.at(\labs).editor
 
 
 (
@@ -244,5 +291,21 @@ SynthDef("dirt_mideq" ++ numChannels, { |out, midfreq = 440, midrq = 0, middb = 
 )
 
 
+~instruments.at(\zebralette).editor
+
+~instruments
+
 
 ~dirt.orbits[0.asInteger].group
+
+~dirt.server.latency
+
+
+(
+~dirt.soundLibrary.addSynth(\prep,
+	(playInside: { |e|
+		["Empty event", e].postln;
+	})
+);
+
+)
