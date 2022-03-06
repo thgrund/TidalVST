@@ -1,5 +1,5 @@
 (
-SynthDef("VST", { |out, pan = 0, n = 0, id = \zebralette1|
+SynthDef("VST", { |out, pan = 0, n = 0, id = \dexed|
 	var sound;
 
 	var env = EnvGen.kr(Env.asr(0.1, 1, 0.1), gate: 1, doneAction:2);
@@ -7,7 +7,7 @@ SynthDef("VST", { |out, pan = 0, n = 0, id = \zebralette1|
 	sound = In.ar(out, ~dirt.numChannels);
 
 	// These are vst instruments
-	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette1) * env;
+	sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \dexed) * env;
 
 	//sound = VSTPlugin.ar(sound, ~dirt.numChannels, id: \zebralette2);
 	// Here you could define more instruments
@@ -22,13 +22,13 @@ var diversions = ();
 var vstControlBus = ();
 var vstControlBusses = ();
 var synths = Dictionary [
-	\zebralette1 -> Synth("VST", [id: \zebralette1]),
+	\dexed -> Synth("VST", [id: \dexed]),
 	//\zebralette2 -> Synth("VST", [id: \zebralette2])
 ];
 var instrument;
 var instrumentSynths= ();
 var instruments = Dictionary[
-	\zebralette1 -> VSTPluginController(synths.at(\zebralette1), id: \zebralette1).open("Zebralette", editor: true, verbose: false),
+	\dexed -> VSTPluginController(synths.at(\dexed), id: \dexed).open("Odin2.vst3", editor: true, verbose: false),
 	//\zebralette2 -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false)
 ];
 
@@ -115,7 +115,7 @@ var triggerFunc = { |vstName|
 var serverMessage = { |synth|
 	[\out, ~out, \sustain, ~sustain].asControlInput.flop.do { |each|
 		~dirt.server.sendMsg(\s_new,
-			synth,
+			\VST,
 			-1, // no id
 			1, // add action: addToTail
 			currentEnvironment.at(\synthGroup), // send to group
@@ -126,7 +126,7 @@ var serverMessage = { |synth|
 
 ~dirt.soundLibrary.addSynth(\vst,
 	(playInside: { |e|
-		triggerFunc.value(\zebralette1);
+		triggerFunc.value(\dexed);
 		serverMessage.value(\VST);
 	})
 );
@@ -141,6 +141,6 @@ var serverMessage = { |synth|
 	})
 );
 
-~instruments.at(\zebralette1).editor
+~instruments.at(\dexed).editor
 
 Quarks

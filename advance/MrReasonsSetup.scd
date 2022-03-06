@@ -309,3 +309,9 @@ SynthDef("dirt_mideq" ++ numChannels, { |out, midfreq = 440, midrq = 0, middb = 
 );
 
 )
+
+thisProcess.nowExecutingPath.dirname
+
+c.readProgram(thisProcess.nowExecutingPath.dirname +/+ "Odin/bass-crusher.vstpreset");
+
+c.writeProgram(thisProcess.nowExecutingPath.dirname +/+ "Odin/bass-crusher.vstpreset");
