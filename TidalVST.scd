@@ -115,7 +115,7 @@ var triggerFunc = { |vstName|
 var serverMessage = { |synth|
 	[\out, ~out, \sustain, ~sustain].asControlInput.flop.do { |each|
 		~dirt.server.sendMsg(\s_new,
-			\VST,
+			synth,
 			-1, // no id
 			1, // add action: addToTail
 			currentEnvironment.at(\synthGroup), // send to group
