@@ -13,7 +13,7 @@ This can currently be understood as a proof of concept. What you can do is to:
 ## Requirements
 
 - TidalCycles v1.7.1+
-- [SuperDirt](https://github.com/musikinformatik/SuperDirt) v1.7.1+
+- [SuperDirt](https://github.com/musikinformatik/SuperDirt) v1.7.3+
 - [VSTPlugin](https://github.com/Spacechild1/vstplugin) 0.4.0+
 
 ## TidalCycles
