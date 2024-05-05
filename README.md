@@ -1,163 +1,92 @@
-# TidalLooper
-Looper for [SuperDirt](https://github.com/musikinformatik/SuperDirt) to provide live sampling in [TidalCycles](https://github.com/tidalcycles/Tidal).
+# TidalVST (MrReason setup version)
 
-## SuperCollider Quark
+Using Supercolliders VSTPluginController to control VST plugins with TidalCycles.
 
-The TidalCycles looper can now be installed as SuperCollider Quark. 
-Currently this has to be done manually by downloading this repository and then adding the folder in SuperCollider under `Language -> Quarks -> Install a folder`. 
+This can currently be understood as a proof of concept. What you can do is to: 
 
-This procedure has the following reasons:
+- Use the VSTPluginController to make a VST plugin accesible for TidalCycles
+- Control VST parameters with TidalCycles pattern. You can use simple functions or even control busses!
+-  Apply all kind of effects from SuperDirt 
 
-- Easier to extend and customize. 
-- There is a documentation in SuperCollider. 
-- The looper can be loaded in the startup script when starting the server.
-- Different releases can be issued in the future (but this is not done yet).
+## Requirements
 
-### How to use it
-
-To start the TidalLooper you first have to create a SuperDirt instance and then initialize the TidalLooper.
-
-```
-~dirt = SuperDirt(2, s);
-~looper = TidalLooper(~dirt);
-```
-
-You can adjust various parameters:
-```
-~looper.pLevel = 0.8;
-```
-
-In SuperCollider you can also add the TidalLooper under `File -> Open startup script` 
-and have it available after every server start.
-
-```
-(
-    s.waitForBoot {
-        ~dirt = SuperDirt(2, s);
-        // More SuperDirt ...
-
-        // Initialize the TidalLooper
-        ~looper = TidalLooper(~dirt);
-
-        // You can adjust these parameter even in runtime
-        ~looper.rLevel = 1.5;
-        ~looper.pLevel = 0.8;
-        ~looper.linput = 15; // Set this to your main input port.
-        ~looper.lname = "mybuffer";
-    }
-)
-```
+- TidalCycles v1.7.1+
+- [SuperDirt](https://github.com/musikinformatik/SuperDirt) v1.7.1+
+- [VSTPlugin](https://github.com/Spacechild1/vstplugin) 0.4.0+
 
 ## TidalCycles
-### Pre-Requirement
 
-First you should execute the following tidal code:
+### Installation
+
+Create a new control bus target in your `BootTidal.hs`:
+
+```Haskell
+let vstTarget = Target {oName = "hydra", oAddress = "127.0.0.1", oHandshake = True, oPort = 3337, oBusPort = Just 3338, oLatency = 0.1, oSchedule = Pre BundleStamp, oWindow = Nothing}
+
+tidal <- startStream (defaultConfig {cFrameTimespan = 1/20}) [(superdirtTarget {oLatency = 0.1}, [superdirtShape]),(vstTarget, [superdirtShape]) ]
+```
+
+And you need to add the content from  `newFunction.hs` in this repo to your `BootTidal.hs` too.
+
+## How to use it
+
+One simple approach is to play notes withouth controlling any other parameter:
 
 ```haskell
-linput = pI "linput"
-lname = pS "lname"
+d1 $ n (scale "major" "0 5 ~7") # s "vst" -- this name can be changed in the addSynth function  
 ```
 
-Now you can use `linput` and `lname` as parameter.
-
-### How to use it
-
-This basic operations which are explained below is shared by all looper modes. By default 8 buffers are created, and accessible under the name 'loop' (s) and a number from 0 .. 7 (n).
-
-The simplest form for recording is
+ But you can use the functions `varg1` .. `varg100` from `newFunction.hs`. The parameter mapping depends on the plugin. I prefer to create a more semantically meaning for a specific vst plugin parameter like `oscrate = varg23`. 
 
 ```haskell
-once $ s "looper" -- writes one cycle to the loop buffer and uses the input port 0 and the sample number 0
+d1 $ n (scale "major" "0 5 ~7")
+   # s "vst"
+   # varg34 (
+      "[0.25 <0.5 0.75> <0.75 0>]"
+   )
 ```
 
-After recording you can listen back to the result with
+You can control  the vst parameter with control busses too! Like the functions you can access the control busses with `varg1bus` .. `varg100bus`.
 
 ```haskell
-d1 $ s "loop"
+d1 $ n "0/2"
+   # s "vst"
+   # varg34bus 1 (
+      segment "<4 256>"
+      $ ( isaw * "<0.25 0.25 0.5>") + 0.25
+   ) # legato 2
 ```
 
-It is possible to set the length of the recording (this is equals to the length of the events) i.e
+And you can add global effects from SuperDirt 
 
 ```haskell
-d1 $ slow 2 $ s "loop"
+d1 $ n (scale "major" "0 5 ~7")
+   # s "vst"
+   # room 0.2 # sz 0.4
+   # delay 1
+   # delaytime 0.2 # delayfeedback 0.2
+   # leslie 1
+   # lsize 2.8 # lrate 6.7
+   # legato 0.1
 ```
 
-Use n to choose a specific buffer, i.e. n "2" is equal to "write to the second buffer under of the sample bank loop".
+Andlocal effects from SuperDirt
 
 ```haskell
-d1 $ s "looper" # n "<0 1 2 3 4 5 6 7>"
+d1 $ n (scale "major" "0 5 ~7")
+   # s "vst"
+   # lpf (slow 4 $ sine * 4000)
 ```
 
-And each buffer is accessible with the n function
+## SuperCollider
 
-```haskell
-d2 $ s "loop" # n "[0,1,2,3,4,5,6,7]"
-```
+For adding or removing a VST plugins you need to do the following changes in `TidalVST.scd`:
 
-You can use each input port for recording. If you use i.e. Blackhole, than the output and input ports have the same results. This way you can write the orbit results (i.e. what came from d1) to a buffer.
+1. Add something like `VSTPlugin.ar(sound, ~dirt.numChannels, id: \myVstId);` to the "VST" SynthDef
+2. Add `\myVstId -> Synth("VST", [id: \myVstId]),`to the synths Dictionary
+3. Add `\myVstId -> VSTPluginController(synths.at(\zebralette2), id: \zebralette2).open("Zebralette", editor: true, verbose: false),`to the instruments Dictionary.
 
-```haskell
-d1 $ s "looper" # linput 16
-```
+I think not every parameter should be necessary and it should be clean up soon. But to be unsure everything is working you should do it this way.
 
-You can specifiy the name of your loop sample bank
-
-``` haskell
-once $ s "looper" # lname "bubu"
-
-d1 $ s "bubu"
-```
-
-To reset all loop buffers just evaluate
-
-```haskell
-once $ s "freeLoops"
-```
-
-To persist all loop buffers of a specific buffer list just evaluate
-
-```haskell
-once $ s "persistLoops" # lname "bubu"
-```
-
-**Note 1:** I prefer to use 'qtrigger 1' to ensure, that the recording starts from the beginning of the pattern.
-Maybe you want to use the looper with seqP, seqPLoop or wait.
-
-**Note 2:** If you want to use more samples under one name, than adjust the `numBuffers` in the `Looper.scd`.
-
-### Replace mode
-
-In replace mode, each time the recording pattern is called, the specified buffer is recreated and any existing buffer is cleared. The basic looper `s $ "looper"` is actually the `"rlooper"` (for replace looper) and just a synonym. 
-
-To continuously play back and record a loop, the code could looks like this
-
-```haskell
-d1 $ qtrigger 1 $ stack [
-    s "rlooper" # n "<0 1 2 3>",
-    s "loop" # n "[0,1,2,3]",
-    s "808 cp!3"
-]
-```
-
-If you record a loop of cycle length 1 and play it back at the same time, you will never hear a result, because the buffer is immediately rewritten at each cycle.
-
-**Note:** You can change the default looper mode by changing the variable `pLevel` in the `Looper.scd`.
-
-### Overdub mode
-
-Loop overdub - A  mode found in many looping devices where new material can be added on top of — overdubbed on — existing loop material. This allows you to layer additional parts into a loop to create a fuller sound or a more “layered” effect. (See https://www.sweetwater.com/insync/loop-overdub/)
-
-In overdub mode, each time the recording pattern is called, the specified buffer is kept and the incoming audio signal is mixed to the existing one. This means that no new buffer is created if a recording has already been made for that buffer. To use the looper in overdub mode you just need to use `olooper` (for overdub looper) instead of `looper`.
-
-To continuously play back and record a loop, the code could looks like this
-
-```haskell
-d1 $ qtrigger 1 $ stack [s "olooper",s "loop",s "808 cp!3"] 
-```
-
-**Note 1:** The buffer length of a buffer is set when recording for the first time and cannot be changed afterwards (unless you clear the buffer with `s "freeLoops"`) .
-
-**Note 2:** In an older version the additional function `playAll` was needed to simulate an overdub mode. This is no longer necessary because a "real" overdub mode was implemented.
-
-
+The `VSTPluginController` should looks into your VST and VST3 folder for the file names. These names should be the same for the `open` method. 
 
