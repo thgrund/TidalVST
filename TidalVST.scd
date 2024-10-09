@@ -134,13 +134,3 @@ var serverMessage = { |synth|
 ~instruments = instruments;
 
 )
-
-~dirt.soundLibrary.addSynth(\bubu,
-	(playInside: { |e|
-		"Hello world".postln;
-	})
-);
-
-~instruments.at(\dexed).editor
-
-Quarks
